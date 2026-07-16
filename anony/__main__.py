@@ -13,6 +13,23 @@ from anony import (anon, app, config, db, logger,
 from anony.plugins import all_modules
 
 
+async def health_server():
+    """Minimal HTTP health check server on port 8000."""
+    async def handle(reader, writer):
+        try:
+            await reader.read(1024)
+        except Exception:
+            pass
+        response = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK"
+        writer.write(response)
+        await writer.drain()
+        writer.close()
+
+    server = await asyncio.start_server(handle, "0.0.0.0", 8000)
+    async with server:
+        await server.serve_forever()
+
+
 async def idle():
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
@@ -23,6 +40,8 @@ async def idle():
     await stop_event.wait()
 
 async def main():
+    asyncio.ensure_future(health_server())
+
     await db.connect()
     await app.boot()
     await userbot.boot()
